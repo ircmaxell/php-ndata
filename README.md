@@ -12,9 +12,9 @@ Benchmarks
 
 Compared to a regular PHP array (see benchmark.php), NArray appears to be significantly faster, and FAR more memory efficient. 
 
-Using an array of 100,000 integers, building the array happens in about 1/3 of the time using 1/100th the memory.
+Using an array of 100,000 integers, building the NArray happens in about 1/3 of the time using 1/100th the memory of a regular PHP array.
 
-Using an array of 100,000 booleans, building the array takes 1/2 the time, but uses 1/1000th the memory.
+Using an array of 100,000 booleans, building the NArray takes 1/2 the time and uses 1/1000th the memory of a regular PHP array.
 
 Usage
 =====
