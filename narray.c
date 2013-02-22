@@ -1,11 +1,19 @@
 #include <php.h>
 #include "php_ndata.h"
+#include "narray.h"
 #include "zend_exceptions.h"
-#include "spl_exceptions.h"
-a
+#include "ext/spl/spl_exceptions.h"
+
 extern zend_object_handlers narray_handlers;
 
 zend_class_entry *ndata_ce_NArray;
+
+zend_object_handlers ndata_narray_handlers;
+
+zend_object_value php_ndata_narray_new(zend_class_entry *class_type TSRMLS_DC);
+
+static void php_ndata_narray_free(void *object TSRMLS_DC);
+void php_ndata_narray_ctor(INTERNAL_FUNCTION_PARAMETERS);
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo___construct, 2, ZEND_RETURN_VALUE, 0)
     ZEND_ARG_INFO(0, size)
@@ -29,16 +37,17 @@ void ndata_init_NArray(TSRMLS_D)
     ce.create_object = php_ndata_narray_new;
     ndata_ce_NArray = zend_register_internal_class_ex(&ce, NULL, NULL TSRMLS_CC);
 
+    memcpy(&ndata_narray_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 }
 
 PHP_METHOD(NArray, __construct)
 {
-    php_ndata_narray_ctor(INTERNAL_FUNCTION_PARAM_PASSTHRU, 1);
+    php_ndata_narray_ctor(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 }
 
 PHP_METHOD(NArray, count)
 {
-    ndata_array *data = PHP_NDATA_GET_DATA(getThis());
+    ndata_array *data = (ndata_array*)zend_object_store_get_object(getThis() TSRMLS_CC);
 
     RETURN_LONG(data->count);
 }
@@ -55,14 +64,14 @@ static inline void* ndata_narray_allocate(ndata_type_t type, long size)
     }
 }
 
-void php_ndata_narray_ctor(INTERNAL_FUNCTION_PARAMETERS, int bc)
+void php_ndata_narray_ctor(INTERNAL_FUNCTION_PARAMETERS)
 {
     ndata_array *link;
     long type = 0, size = 0;
-    zval *options = 0;
+    zval *data = 0;
     ndata_type_t parsed_type;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, 'll|a', &type, &size, &data) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ll|a", &type, &size, &data) == FAILURE) {
         zval *object = getThis();
         ZVAL_NULL(object);
         return;
@@ -75,7 +84,7 @@ void php_ndata_narray_ctor(INTERNAL_FUNCTION_PARAMETERS, int bc)
 
     parsed_type = (ndata_type_t) type;
 
-    link = (ndata_array*) zend_object_store_get_object(getThis() TSRMLS_CC);
+    link = (ndata_array*)zend_object_store_get_object(getThis() TSRMLS_CC);
     link->size = size;
     link->type = parsed_type;
     link->count = 0;
@@ -89,6 +98,7 @@ void php_ndata_narray_ctor(INTERNAL_FUNCTION_PARAMETERS, int bc)
     }
 
 }
+
 
 static void php_ndata_narray_free(void *object TSRMLS_DC)
 {

@@ -13,7 +13,7 @@ PHP_MSHUTDOWN_FUNCTION(ndata);
 PHP_MINFO_FUNCTION(ndata);
 
 typedef enum {
-    N_TYPE_MIN = 0;
+    N_TYPE_MIN = 0,
     N_TYPE_LONG,
     N_TYPE_DOUBLE,
     N_TYPE_BOOL,

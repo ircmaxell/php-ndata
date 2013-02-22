@@ -10,15 +10,15 @@
 zend_module_entry ndata_module_entry = {
     STANDARD_MODULE_HEADER,
     "ndata",
-    null,
+    NULL,
     PHP_MINIT(ndata),
     PHP_MSHUTDOWN(ndata),
-    null,
-    null,
+    NULL,
+    NULL,
     PHP_MINFO(ndata),
     PHP_NDATA_VERSION,
     NO_MODULE_GLOBALS,
-    null,
+    NULL,
     STANDARD_MODULE_PROPERTIES_EX
 };
 
