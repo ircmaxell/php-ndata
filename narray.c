@@ -52,7 +52,7 @@ void ndata_init_NArray(TSRMLS_D)
 
     zend_declare_class_constant_long(ndata_ce_NArray, "TYPE_LONG", sizeof("TYPE_LONG") - 1, (long) N_TYPE_LONG);
     zend_declare_class_constant_long(ndata_ce_NArray, "TYPE_DOUBLE", sizeof("TYPE_DOUBLE") - 1, (long) N_TYPE_DOUBLE);
-    zend_declare_class_constant_long(ndata_ce_NArray, "TYPE_BOOL", sizeof("TYPE_BOOL"), (long) N_TYPE_BOOL);
+    zend_declare_class_constant_long(ndata_ce_NArray, "TYPE_BOOL", sizeof("TYPE_BOOL") - 1, (long) N_TYPE_BOOL);
    
 }
 
