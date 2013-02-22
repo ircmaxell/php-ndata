@@ -208,9 +208,13 @@ static inline int narray_write_zval_to_offset(zval *value, ndata_array *link, lo
         return FAILURE;
     }
     if (offset >= link->current_size) {
-        if (link->size == -1) {
+        if (link->size == 0) {
             link->data = ndata_narray_reallocate(link->data, link->type, 2 * link->current_size);
             link->current_size = 2 * link->current_size;
+        } else if (link->size < 0) {
+            long size_change = abs(link->size);
+            link->data = ndata_narray_reallocate(link->data, link->type, size_change + link->current_size);
+            link->current_size += size_change;
         } else {
             zend_throw_exception(spl_ce_RuntimeException, "Non-Resizable Array", 0 TSRMLS_CC);
             return FAILURE;
