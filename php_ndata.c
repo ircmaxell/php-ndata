@@ -28,6 +28,7 @@ ZEND_GET_MODULE(ndata)
 
 PHP_MINIT_FUNCTION(ndata)
 {
+    ndata_init_NArray(TSRMLS_C);
     return SUCCESS;
 }
 

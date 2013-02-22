@@ -14,6 +14,11 @@ zend_object_value php_ndata_narray_new(zend_class_entry *class_type TSRMLS_DC);
 
 static void php_ndata_narray_free(void *object TSRMLS_DC);
 void php_ndata_narray_ctor(INTERNAL_FUNCTION_PARAMETERS);
+static zval* narray_read_dimension(zval *object, zval *offset, int type TSRMLS_DC);
+static void narray_write_dimension(zval *object, zval *offset, zval *value TSRMLS_DC);
+
+static inline int narray_write_zval_to_offset(zval *value, ndata_array *link, long offset);
+static inline int narray_write_offset_to_zval(zval *result, ndata_array *link, long offset, int alloc_init);
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo___construct, 2, ZEND_RETURN_VALUE, 0)
     ZEND_ARG_INFO(0, size)
@@ -33,11 +38,14 @@ static zend_function_entry narray_methods[] = {
 void ndata_init_NArray(TSRMLS_D)
 {
     zend_class_entry ce;
-    INIT_CLASS_ENTRY_NS(ce, "NArray", "NData", narray_methods);
+    INIT_NS_CLASS_ENTRY(ce, "NData", "NArray", narray_methods);
     ce.create_object = php_ndata_narray_new;
     ndata_ce_NArray = zend_register_internal_class_ex(&ce, NULL, NULL TSRMLS_CC);
 
     memcpy(&ndata_narray_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
+    
+    ndata_narray_handlers.read_dimension = narray_read_dimension;
+    ndata_narray_handlers.write_dimension = narray_write_dimension;
 }
 
 PHP_METHOD(NArray, __construct)
@@ -61,6 +69,18 @@ static inline void* ndata_narray_allocate(ndata_type_t type, long size)
             return (void *) safe_emalloc(sizeof(double), size, 0);
         case N_TYPE_BOOL:
             return (void *) safe_emalloc(sizeof(char), ceil((double) size / 8.0), 0);
+    }
+}
+
+static inline void* ndata_narray_reallocate(void *data, ndata_type_t type, long size)
+{
+    switch (type) {
+        case N_TYPE_LONG:
+            return (void *) safe_erealloc(data, sizeof(long), size, 0);
+        case N_TYPE_DOUBLE:
+            return (void *) safe_erealloc(data, sizeof(double), size, 0);
+        case N_TYPE_BOOL:
+            return (void *) safe_erealloc(data, sizeof(char), ceil((double) size / 8.0), 0);
     }
 }
 
@@ -90,10 +110,10 @@ void php_ndata_narray_ctor(INTERNAL_FUNCTION_PARAMETERS)
     link->count = 0;
     
     if (size > 0) {
-        link->data = ndata_narray_allocate(ndata_narray_getTypeSize(parsed_type), size);
+        link->data = ndata_narray_allocate(parsed_type, size);
         link->current_size = size;
     } else {
-        link->data = ndata_narray_allocate(ndata_narray_getTypeSize(parsed_type), 1);
+        link->data = ndata_narray_allocate(parsed_type, 1);
         link->current_size = 1;
     }
 
@@ -121,10 +141,133 @@ zend_object_value php_ndata_narray_new(zend_class_entry *class_type TSRMLS_DC)
     intern = (ndata_array*)emalloc(sizeof(ndata_array));
     memset(intern, 0, sizeof(ndata_array));
     zend_object_std_init(&intern->std, class_type TSRMLS_CC);
-    init_properties(intern);
 
     retval.handle = zend_objects_store_put(intern, (zend_objects_store_dtor_t) zend_objects_destroy_object, php_ndata_narray_free, NULL TSRMLS_CC);
     retval.handlers = &ndata_narray_handlers;
 
     return retval;
+}
+
+static zval* narray_read_dimension(zval *object, zval *offset, int type TSRMLS_DC)
+{
+    long real_offset = 0;
+    zval *result;
+    ndata_array *link = zend_object_store_get_object(object TSRMLS_CC);
+    switch (type) {
+        case BP_VAR_W:
+        case BP_VAR_RW:
+        case BP_VAR_UNSET:
+            zend_throw_exception(spl_ce_LogicException, "Using array in write context", 0 TSRMLS_CC);
+            return NULL;
+        default:
+            break;
+    }
+    if (Z_TYPE_P(offset) == IS_LONG) {
+        real_offset = Z_LVAL_P(offset);
+    } else {
+        zend_throw_exception(spl_ce_OutOfBoundsException, "Key must be an integer", 0 TSRMLS_CC);
+        return NULL;
+    }
+    
+    if (FAILURE == narray_write_offset_to_zval(result, link, real_offset, 1)) {
+        zend_throw_exception(spl_ce_LogicException, "Unknown Failure", 0 TSRMLS_CC);
+        return NULL;
+    }
+    return result;
+}
+
+static void narray_write_dimension(zval *object, zval *offset, zval *value TSRMLS_DC)
+{
+    long real_offset = 0;
+    ndata_array *link = zend_object_store_get_object(object TSRMLS_CC);
+    
+    if (Z_TYPE_P(offset) == IS_LONG) {
+        real_offset = Z_LVAL_P(offset);
+    } else {
+        return;
+    }
+
+    if (FAILURE == narray_write_zval_to_offset(value, link, real_offset)) {
+        // Handle error!!!
+    }
+}
+
+static inline int narray_write_zval_to_offset(zval *value, ndata_array *link, long offset)
+{
+    if (offset < 0 || offset > link->count) {
+        return FAILURE;
+    }
+    if (offset == link->count && offset - 1 > link->current_size) {
+        if (link->size == -1) {
+            link->data = ndata_narray_reallocate(link->data, link->type, 2 * link->current_size);
+            link->current_size = 2 * link->current_size;
+        } else {
+            return FAILURE;
+        }
+    }
+
+    switch (link->type) {
+        case N_TYPE_LONG: {
+            long *data = (long*)(link->data);
+            if (Z_TYPE_P(value) != IS_LONG) {
+                return FAILURE;
+            }
+            data[offset] = Z_LVAL_P(value);
+            }
+            break;
+        case N_TYPE_DOUBLE: {
+            double *data = (double*)(link->data);
+            if (Z_TYPE_P(value) != IS_DOUBLE) {
+                return FAILURE;
+            }
+            data[offset] = Z_DVAL_P(value);
+            }
+            break;
+        case N_TYPE_BOOL: {
+            char *data = (char*)(link->data);
+            long start_offset = floor((double) offset / 8.0);
+            long minor_offset = offset % 8;
+            if (Z_BVAL_P(value) == 1) {
+                data[start_offset] |= (1 << (8 - minor_offset));
+            } else {
+                data[start_offset] &= ~(1 << (8 - minor_offset));
+            }
+            }
+            break;
+    }
+    if (offset == link->count) {
+        link->count++;
+    }
+    return SUCCESS;
+}
+
+static inline int narray_write_offset_to_zval(zval *result, ndata_array *link, long offset, int alloc_init)
+{
+    if (offset < 0 || offset >= link->count) {
+        return FAILURE;
+    }
+    if (alloc_init) {
+        ALLOC_INIT_ZVAL(result);
+    }
+    switch (link->type) {
+        case N_TYPE_LONG: {
+            long *data = (long*)(link->data);
+            ZVAL_LONG(result, data[offset]);
+            }
+            break;
+        case N_TYPE_DOUBLE: {
+            double *data = (double*)(link->data);
+            ZVAL_DOUBLE(result, data[offset]);
+            }
+            break;
+        case N_TYPE_BOOL: {
+            char *data = (char*)(link->data);
+            long start_offset = floor((double) offset / 8.0);
+            long minor_offset = offset % 8;
+            char bits = data[start_offset];
+            ZVAL_BOOL(result, (bits >> (8 - minor_offset)) & 1);
+            }
+            break;
+    }
+    return SUCCESS;
 }
