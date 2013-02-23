@@ -42,6 +42,10 @@ For Booleans, NArray finsihes just about even with SplFixedArray, and is about 3
 Usage
 =====
 
+### Constructor 
+
+`public __construct(int $type, int $size);`
+
 The constructor takes two parameters, a type and a size:
 
     new NData\NArray($type, $size)
@@ -54,10 +58,25 @@ The type parameter is specified by one of the following constants:
 
 The size parameter is the starting size of the memory block (in items). A size value of 0 will automatically re-size itself as the array grows. It will allocate dynamically in power-of-two increments (so the first resize will be from 1 to 2, the second 2 to 4, the third 4 to 8, etc). A negative number will allocate in increments of that number (the positive version). A positive number will fix and throw an exception if you attempt to add more items (like SPLFixedArray).
 
+### Count
+
+`public int count();`
+
+Returns the current number of elements set in the array
+
+### Iterating
+`public mixed current();`
+`public int key();`
+`public void next();`
+`public void rewind();`
+`public void reset();`
+
+A normal iterator...
+
 TODO
 ====
 
-A **LOT**. Right now, only array access (read/write) works, and count is implemented. The rest, is to come...
+A **LOT**. Right now, only array access (read/write) works, iterating and count is implemented. The rest, is to come...
 
 Ideas
 =====
