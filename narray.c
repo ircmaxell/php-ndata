@@ -4,6 +4,7 @@
 #include "zend_exceptions.h"
 #include "ext/spl/spl_exceptions.h"
 #include "ext/spl/spl_iterators.h"
+#include "zend_interfaces.h"
 
 extern zend_object_handlers narray_handlers;
 
@@ -30,9 +31,29 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_count, 0, ZEND_RETURN_VALUE, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_current, 0, ZEND_RETURN_VALUE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_key, 0, ZEND_RETURN_VALUE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_next, 0, ZEND_RETURN_VALUE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_rewind, 0, ZEND_RETURN_VALUE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_valid, 0, ZEND_RETURN_VALUE, 0)
+ZEND_END_ARG_INFO()
+
 static zend_function_entry narray_methods[] = {
     PHP_ME(NArray, __construct, arginfo___construct, ZEND_ACC_PUBLIC)
     PHP_ME(NArray, count, arginfo_count, ZEND_ACC_PUBLIC)
+    PHP_ME(NArray, current, arginfo_current, ZEND_ACC_PUBLIC)
+    PHP_ME(NArray, key, arginfo_key, ZEND_ACC_PUBLIC)
+    PHP_ME(NArray, next, arginfo_next, ZEND_ACC_PUBLIC)
+    PHP_ME(NArray, rewind, arginfo_rewind, ZEND_ACC_PUBLIC)
+    PHP_ME(NArray, valid, arginfo_valid, ZEND_ACC_PUBLIC)
     { NULL, NULL, NULL }
 };
 
@@ -43,7 +64,7 @@ void ndata_init_NArray(TSRMLS_D)
     ce.create_object = php_ndata_narray_new;
     ndata_ce_NArray = zend_register_internal_class_ex(&ce, NULL, NULL TSRMLS_CC);
 
-    zend_class_implements(ndata_ce_NArray TSRMLS_CC, 1, spl_ce_Countable);
+    zend_class_implements(ndata_ce_NArray TSRMLS_CC, 2, spl_ce_Countable, zend_ce_iterator);
 
     memcpy(&ndata_narray_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
     
@@ -66,6 +87,35 @@ PHP_METHOD(NArray, count)
     ndata_array *data = (ndata_array*)zend_object_store_get_object(getThis() TSRMLS_CC);
 
     RETURN_LONG(data->count);
+}
+PHP_METHOD(NArray, current)
+{
+    ndata_array *data = (ndata_array*)zend_object_store_get_object(getThis() TSRMLS_CC);
+    if (data->offset < data->count) {
+        narray_write_offset_to_zval(&return_value, data, data->offset, 0);
+    }
+}
+PHP_METHOD(NArray, key)
+{
+    ndata_array *data = (ndata_array*)zend_object_store_get_object(getThis() TSRMLS_CC);
+
+    RETURN_LONG(data->offset);
+}
+PHP_METHOD(NArray, next)
+{
+    ndata_array *data = (ndata_array*)zend_object_store_get_object(getThis() TSRMLS_CC);
+    data->offset++;
+}
+PHP_METHOD(NArray, rewind)
+{
+    ndata_array *data = (ndata_array*)zend_object_store_get_object(getThis() TSRMLS_CC);
+    data->offset = 0;
+}
+PHP_METHOD(NArray, valid)
+{
+    ndata_array *data = (ndata_array*)zend_object_store_get_object(getThis() TSRMLS_CC);
+
+    RETURN_BOOL(data->offset < data->count);
 }
 
 static inline void* ndata_narray_allocate(ndata_type_t type, long size)
@@ -223,30 +273,24 @@ static inline int narray_write_zval_to_offset(zval *value, ndata_array *link, lo
 
     switch (link->type) {
         case N_TYPE_LONG: {
-            long *data = (long*)(link->data);
             if (Z_TYPE_P(value) != IS_LONG) {
                 return FAILURE;
             }
-            data[offset] = Z_LVAL_P(value);
+            ((long*)link->data)[offset] = Z_LVAL_P(value);
             }
             break;
         case N_TYPE_DOUBLE: {
-            double *data = (double*)(link->data);
             if (Z_TYPE_P(value) != IS_DOUBLE) {
                 return FAILURE;
             }
-            data[offset] = Z_DVAL_P(value);
+            ((double*)link->data)[offset] = Z_DVAL_P(value);
             }
             break;
         case N_TYPE_BOOL: {
-            char *data = (char*)(link->data);
-            long start_offset = floor((double) offset / 8.0);
             long minor_offset = offset % 8;
-            if (Z_BVAL_P(value) == 1) {
-                data[start_offset] |= (1 << (8 - minor_offset));
-            } else {
-                data[start_offset] &= ~(1 << (8 - minor_offset));
-            }
+            char point = ((char*)link->data)[(long) floor((double) offset / 8.0)];
+            char mask = (char) (0x01 << (8 - minor_offset));
+            point = (point & ~mask) | (Z_BVAL_P(value) << (8 - minor_offset));
             }
             break;
     }
@@ -266,13 +310,11 @@ static inline int narray_write_offset_to_zval(zval **result, ndata_array *link, 
     }
     switch (link->type) {
         case N_TYPE_LONG: {
-            long *data = (long*)(link->data);
-            ZVAL_LONG(*result, data[offset]);
+            ZVAL_LONG(*result, ((long*)link->data)[offset]);
             }
             break;
         case N_TYPE_DOUBLE: {
-            double *data = (double*)(link->data);
-            ZVAL_DOUBLE(*result, data[offset]);
+            ZVAL_DOUBLE(*result, ((double*)link->data)[offset]);
             }
             break;
         case N_TYPE_BOOL: {
