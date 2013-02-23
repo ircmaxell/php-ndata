@@ -2,7 +2,7 @@ NData
 =====
 A Native Data extension for PHP
 
-Currently, a Nieve Native Array class is implemented.
+Currently, a Naive Native Array class is implemented.
 This class stores values of a specified type in a native format.
 
 The future of this library will attempt to provide tools to support working with native C data structures and data representations in a clean and easy to use manner. 
