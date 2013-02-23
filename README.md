@@ -10,11 +10,34 @@ The future of this library will attempt to provide tools to support working with
 Benchmarks
 ==========
 
-Compared to a regular PHP array (see benchmark.php), NArray appears to be significantly faster, and FAR more memory efficient. 
+Compared to a regular PHP array (see benchmark.php), NArray appears to be significantly faster, and FAR more memory efficient. Compared to SplFixedArray, NArray is only slightly faster, but FAR more memory efficient in all cases.
 
-Using an array of 100,000 integers, building the NArray happens in about 1/3 of the time using 1/100th the memory of a regular PHP array.
+### Memory
 
-Using an array of 100,000 booleans, building the NArray takes 1/2 the time and uses 1/1000th the memory of a regular PHP array.
+For Long (integers) and Double (floating points), NArray uses 1/5 the memory that SplFixedArray does, and 1/14 the memory that normal Arrays do.
+
+For Booleans, NArray uses 1/335 the memory of SplFixedArray, and 1/877 the memory of Array...
+
+### Time
+
+For Long (integers) and Double (floating points), NArray finishes about 29% faster than SplFixedArray, and about twice as fast as a normal Array.
+
+For Booleans, NArray finsihes just about even with SplFixedArray, and is about 33% faster than a normal Array
+
+### Raw benchmark Results:
+
+    Long NArray: 100000 In 0.013518095016479 Seconds Using 800312 Memory
+    Long Array: 100000 In 0.029165029525757 Seconds Using 14648928 Memory
+    Long FixedArray: 100000 In 0.017427921295166 Seconds Using 5600480 Memory
+
+    Double NArray: 100000 In 0.015454053878784 Seconds Using 800312 Memory
+    Double Array: 100000 In 0.024532079696655 Seconds Using 14649000 Memory
+    Double FixedArray: 100000 In 0.017278909683228 Seconds Using 5600544 Memory
+
+    Bool NArray: 100000 In 0.019473075866699 Seconds Using 12816 Memory
+    Bool Array: 100000 In 0.025925874710083 Seconds Using 14648992 Memory
+    Bool FixedArray: 100000 In 0.020848989486694 Seconds Using 5600544 Memory
+
 
 Usage
 =====
